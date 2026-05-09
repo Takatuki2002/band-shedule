@@ -566,11 +566,12 @@
         });
       }
 
-      // スコア上位3日を特定
-      const scores = Object.keys(dayData).map(function(k) { return { key:k, score:dayData[k].score }; });
-      scores.sort(function(a,b) { return b.score - a.score; });
-      const top3 = scores.slice(0,3).map(function(s) { return s.key; });
-      const rankColor = ['#5ec77a', '#5ec77a', '#5ec77a']; // 上位3日すべて同じ緑
+      // スコア上位3位以内（同点含む）をすべて強調
+      // スコア降順に並べて上位3日を取得
+      var sortedKeys = Object.keys(dayData).filter(function(k) { return dayData[k].score > 0; });
+      sortedKeys.sort(function(a, b) { return dayData[b].score - dayData[a].score; });
+      var top3 = sortedKeys.slice(0, 3);
+      var rankColor = ['#5ec77a', '#5ec77a', '#5ec77a'];
 
       // カレンダー描画
       const grid = document.createElement('div');
@@ -602,7 +603,7 @@
         card.className = 'day-card' + (dow===0?' sun':dow===6?' sat':'') + (isToday?' today':'');
 
         // 上位3日は枠色を変える（スコアが1以上の場合のみ）
-        if (rankIdx !== -1 && data.score > 0) {
+        if (top3.indexOf(key) !== -1 && data.score > 0) {
           card.style.borderColor = rankColor[rankIdx];
           card.style.borderWidth = '2px';
         }
@@ -630,6 +631,12 @@
         });
 
         card.appendChild(counts);
+
+        // スコア表示
+        var scoreEl = document.createElement('div');
+        scoreEl.style.cssText = 'font-size:10px;color:var(--text-muted);';
+        scoreEl.textContent = data.score + 'pt';
+        card.appendChild(scoreEl);
 
         grid.appendChild(card);
       }
