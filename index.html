@@ -223,6 +223,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="my-schedule">マイスケジュール</div>
     <div class="tab" data-tab="overview">全体カレンダー</div>
+    <div class="tab" data-tab="practice">練習日程</div>
     <div class="tab" data-tab="admin" id="admin-tab" style="display:none;">管理者</div>
   </div>
   <div class="main">
@@ -251,13 +252,15 @@
         </div>
       </div>
       <div id="detail-panel" style="display:none; background:var(--surface); border:1px solid var(--accent); border-radius:12px; padding:20px; margin-bottom:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-          <h3 id="detail-panel-title" style="font-size:15px;"></h3>
-          <button id="close-detail-panel-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">閉じる</button>
-        </div>
+        <h3 id="detail-panel-title" style="font-size:15px; margin-bottom:14px;"></h3>
         <div id="detail-panel-content"></div>
       </div>
       <div id="overview-content"><p class="loading">読み込み中...</p></div>
+    </div>
+
+    <!-- 練習日程 -->
+    <div class="panel" id="panel-practice">
+      <div id="practice-content"></div>
     </div>
 
     <!-- 管理者 -->
@@ -270,19 +273,59 @@
           <button class="btn btn-primary" id="add-part-btn">追加</button>
         </div>
       </div>
+      <div class="admin-section" id="pw-admin-section" style="display:none;">
+        <h3>管理者パスワード変更</h3>
+        <div class="form-group">
+          <label>現在のパスワード</label>
+          <input type="password" id="current-pw-input" placeholder="現在のパスワード">
+        </div>
+        <div class="form-group">
+          <label>新しいパスワード</label>
+          <input type="password" id="new-pw-input" placeholder="新しいパスワード">
+        </div>
+        <div class="form-group">
+          <label>新しいパスワード（確認）</label>
+          <input type="password" id="new-pw-confirm-input" placeholder="もう一度入力">
+        </div>
+        <button class="btn btn-primary" id="change-pw-btn">パスワードを変更する</button>
+        <p id="pw-change-msg" style="font-size:12px;margin-top:8px;display:none;"></p>
+      </div>
+
+      <div class="admin-section" id="venue-admin-section" style="display:none;">
+        <h3>場所管理</h3>
+        <div class="part-list" id="venue-list"></div>
+        <div class="add-part-row">
+          <input type="text" id="new-venue-input" placeholder="新しい場所名">
+          <button class="btn btn-primary" id="add-venue-btn">追加</button>
+        </div>
+      </div>
+      <div class="admin-section" id="practice-admin-section" style="display:none;">
+        <h3>練習日程の登録</h3>
+        <div class="form-group">
+          <label>日付</label>
+          <input type="date" id="practice-date-input">
+        </div>
+        <div class="form-group">
+          <label>開始時間</label>
+          <input type="time" id="practice-start-input">
+        </div>
+        <div class="form-group">
+          <label>終了時間</label>
+          <input type="time" id="practice-end-input">
+        </div>
+        <div class="form-group">
+          <label>場所</label>
+          <select id="practice-venue-input"><option value="">場所を選択</option></select>
+        </div>
+        <div class="form-group">
+          <label>曲名</label>
+          <input type="text" id="practice-song-input" placeholder="例：Jupiter、マーチ〇〇">
+        </div>
+        <button class="btn btn-primary" id="add-practice-btn">登録する</button>
+        <div id="practice-list-admin" style="margin-top:20px;"></div>
+      </div>
     </div>
 
-  </div>
-</div>
-
-<!-- 詳細モーダル -->
-<div class="modal-overlay" id="detail-modal-overlay">
-  <div class="modal" style="width:340px;max-height:80vh;overflow-y:auto;">
-    <h3 id="detail-modal-title" style="margin-bottom:16px;"></h3>
-    <div id="detail-modal-content"></div>
-    <div style="margin-top:16px;">
-      <button class="btn btn-secondary" id="close-detail-modal-btn">閉じる</button>
-    </div>
   </div>
 </div>
 
@@ -304,7 +347,7 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
-  const ADMIN_PASSWORD = "band2024admin";
+  var ADMIN_PASSWORD = "band2024admin";
 
   let currentUser = null;
   let isAdmin = false;
@@ -340,9 +383,12 @@
     tab.addEventListener('click', function() { switchTab(this.dataset.tab); });
   });
   document.getElementById('add-part-btn').addEventListener('click', addPart);
-  document.getElementById('close-detail-panel-btn').addEventListener('click', function() {
-    document.getElementById('detail-panel').style.display = 'none';
-  });
+  document.getElementById('change-pw-btn').addEventListener('click', changePassword);
+  document.getElementById('add-venue-btn').addEventListener('click', addVenue);
+  document.getElementById('new-venue-input').addEventListener('keydown', function(e) { if(e.key==='Enter') addVenue(); });
+  document.getElementById('add-practice-btn').addEventListener('click', addPractice);
+
+
   document.getElementById('new-part-input').addEventListener('keydown', function(e) { if(e.key==='Enter') addPart(); });
 
   // ---- LOGIN ----
@@ -389,8 +435,14 @@
     document.getElementById('app').style.display = 'block';
     document.getElementById('badge-name').textContent = currentUser.name;
     document.getElementById('badge-part').textContent = currentUser.part;
-    if (isAdmin) document.getElementById('admin-tab').style.display = 'block';
+    if (isAdmin) {
+      document.getElementById('admin-tab').style.display = 'block';
+      document.getElementById('pw-admin-section').style.display = 'block';
+      document.getElementById('venue-admin-section').style.display = 'block';
+      document.getElementById('practice-admin-section').style.display = 'block';
+    }
     renderMyCalendar();
+    renderPractice();
   }
 
   function logout() {
@@ -622,6 +674,7 @@
 
         const card = document.createElement('div');
         card.className = 'day-card' + (dow===0?' sun':dow===6?' sat':'') + (isToday?' today':'');
+        card.dataset.key = key;
 
         // 上位3日は枠色を変える（スコアが1以上の場合のみ）
         if (top3.indexOf(key) !== -1 && data.score > 0) {
@@ -728,6 +781,7 @@
 
   // ---- TABS ----
   function switchTab(tabName) {
+    document.getElementById('detail-panel').style.display = 'none';
     document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
     document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
     const tabEl = document.querySelector('[data-tab="' + tabName + '"]');
@@ -735,7 +789,8 @@
     const panelEl = document.getElementById('panel-' + tabName);
     if (panelEl) panelEl.classList.add('active');
     if (tabName === 'overview') renderOverview();
-    if (tabName === 'admin') renderAdminParts();
+    if (tabName === 'practice') renderPractice();
+    if (tabName === 'admin') { renderAdminParts(); renderAdminVenues(); renderAdminPracticeList(); }
   }
 
   // ---- ADMIN ----
@@ -770,6 +825,175 @@
     parts = parts.filter(function(p) { return p !== name; });
     await db.collection('settings').doc('parts').set({ list: parts });
     renderAdminParts();
+  }
+
+  // ---- ADMIN PASSWORD ----
+  async function loadAdminPassword() {
+    var snap = await db.collection('settings').doc('adminPassword').get();
+    if (snap.exists && snap.data().password) ADMIN_PASSWORD = snap.data().password;
+  }
+
+  async function changePassword() {
+    var current = document.getElementById('current-pw-input').value;
+    var newPw   = document.getElementById('new-pw-input').value;
+    var confirm = document.getElementById('new-pw-confirm-input').value;
+    var msg     = document.getElementById('pw-change-msg');
+    msg.style.display = 'block';
+    if (current !== ADMIN_PASSWORD) { msg.style.color='#f76a6a'; msg.textContent='現在のパスワードが違います'; return; }
+    if (!newPw) { msg.style.color='#f76a6a'; msg.textContent='新しいパスワードを入力してください'; return; }
+    if (newPw !== confirm) { msg.style.color='#f76a6a'; msg.textContent='新しいパスワードが一致しません'; return; }
+    try {
+      await db.collection('settings').doc('adminPassword').set({ password: newPw });
+      ADMIN_PASSWORD = newPw;
+      document.getElementById('current-pw-input').value = '';
+      document.getElementById('new-pw-input').value = '';
+      document.getElementById('new-pw-confirm-input').value = '';
+      msg.style.color='#5ec77a'; msg.textContent='パスワードを変更しました！';
+    } catch(e) { msg.style.color='#f76a6a'; msg.textContent='エラー: '+e.message; }
+  }
+
+  // ---- VENUES ----
+  var venues = [];
+
+  async function loadVenues() {
+    var snap = await db.collection('settings').doc('venues').get();
+    if (snap.exists && snap.data().list) {
+      venues = snap.data().list;
+    } else {
+      venues = ['音楽室','体育館','ホール','市民会館'];
+      await db.collection('settings').doc('venues').set({ list: venues });
+    }
+  }
+
+  function renderAdminVenues() {
+    var list = document.getElementById('venue-list');
+    if (!list) return;
+    list.innerHTML = '';
+    venues.forEach(function(v) {
+      var tag = document.createElement('div');
+      tag.className = 'part-tag';
+      var del = document.createElement('span');
+      del.className = 'part-tag-del';
+      del.textContent = '×';
+      del.addEventListener('click', function() { deleteVenue(v); });
+      tag.textContent = v;
+      tag.appendChild(del);
+      list.appendChild(tag);
+    });
+    populateVenueSelect();
+  }
+
+  async function addVenue() {
+    var input = document.getElementById('new-venue-input');
+    var name = input.value.trim();
+    if (!name || venues.indexOf(name) !== -1) return;
+    venues.push(name);
+    await db.collection('settings').doc('venues').set({ list: venues });
+    input.value = '';
+    renderAdminVenues();
+  }
+
+  async function deleteVenue(name) {
+    if (!confirm('「' + name + '」を削除しますか？')) return;
+    venues = venues.filter(function(v) { return v !== name; });
+    await db.collection('settings').doc('venues').set({ list: venues });
+    renderAdminVenues();
+  }
+
+  function populateVenueSelect() {
+    var sel = document.getElementById('practice-venue-input');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">場所を選択</option>';
+    venues.forEach(function(v) {
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v; sel.appendChild(o);
+    });
+  }
+
+  // ---- PRACTICE ----
+  var practices = [];
+
+  async function loadPractices() {
+    var snap = await db.collection('settings').doc('practices').get();
+    practices = (snap.exists && snap.data().list) ? snap.data().list : [];
+  }
+
+  async function addPractice() {
+    var date  = document.getElementById('practice-date-input').value;
+    var start = document.getElementById('practice-start-input').value;
+    var end   = document.getElementById('practice-end-input').value;
+    var venue = document.getElementById('practice-venue-input').value;
+    var song  = document.getElementById('practice-song-input').value.trim();
+    if (!date) { alert('日付を選択してください'); return; }
+    practices.push({ date:date, start:start, end:end, venue:venue, song:song });
+    practices.sort(function(a,b) { return a.date.localeCompare(b.date); });
+    await db.collection('settings').doc('practices').set({ list: practices });
+    document.getElementById('practice-date-input').value = '';
+    document.getElementById('practice-start-input').value = '';
+    document.getElementById('practice-end-input').value = '';
+    document.getElementById('practice-venue-input').value = '';
+    document.getElementById('practice-song-input').value = '';
+    renderAdminPracticeList();
+    renderPractice();
+  }
+
+  async function deletePractice(idx) {
+    if (!confirm('この練習日程を削除しますか？')) return;
+    practices.splice(idx, 1);
+    await db.collection('settings').doc('practices').set({ list: practices });
+    renderAdminPracticeList();
+    renderPractice();
+  }
+
+  function renderAdminPracticeList() {
+    var list = document.getElementById('practice-list-admin');
+    if (!list) return;
+    if (practices.length === 0) { list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">登録された練習日程はありません</p>'; return; }
+    var html = '';
+    practices.forEach(function(p, i) {
+      html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">';
+      html += '<div><div style="font-size:13px;font-weight:500;">' + p.date.replace(/-/g,'/') + '</div>';
+      html += '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">';
+      if (p.start||p.end) html += (p.start||'')+(p.end?'〜'+p.end:'')+'　';
+      if (p.venue) html += p.venue+'　';
+      if (p.song)  html += p.song;
+      html += '</div></div>';
+      html += '<span class="part-tag-del" onclick="deletePractice('+i+')">×</span></div>';
+    });
+    list.innerHTML = html;
+  }
+
+  async function renderPractice() {
+    var container = document.getElementById('practice-content');
+    if (!container) return;
+    await loadPractices();
+    await loadVenues();
+    if (isAdmin) renderAdminVenues();
+    if (practices.length === 0) { container.innerHTML = '<p class="loading">練習日程はまだ登録されていません</p>'; return; }
+    var html = '';
+    practices.forEach(function(p) {
+      html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">';
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
+      html += '<div style="background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;">' + p.date.replace(/-/g,'/') + '</div>';
+      if (p.start||p.end) html += '<div style="font-size:13px;color:var(--text-muted);">'+(p.start||'')+(p.end?' 〜 '+p.end:'')+'</div>';
+      html += '</div><div style="display:flex;flex-wrap:wrap;gap:8px;">';
+      if (p.venue) html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;">📍 '+p.venue+'</div>';
+      if (p.song)  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;">🎵 '+p.song+'</div>';
+      html += '</div></div>';
+    });
+    container.innerHTML = html;
+    highlightPracticeDays();
+  }
+
+  function highlightPracticeDays() {
+    var practiceDates = practices.map(function(p) { return p.date; });
+    document.querySelectorAll('.day-card').forEach(function(card) {
+      var key = card.dataset.key;
+      if (key && practiceDates.indexOf(key) !== -1) {
+        card.style.borderColor = '#f76a6a';
+        card.style.borderWidth = '2px';
+      }
+    });
   }
 
 })();
