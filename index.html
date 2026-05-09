@@ -183,21 +183,34 @@
   <div class="login-card">
     <h1>🎺 band-schedule</h1>
     <p class="subtitle">吹奏楽部 日程調整ツール</p>
-    <div class="form-group">
-      <label>アカウント名</label>
-      <input type="text" id="account-input" placeholder="例：yamada_taro">
+
+    <!-- モード選択 -->
+    <div id="mode-select" style="margin-bottom:24px;">
+      <div class="btn-row">
+        <button class="btn btn-primary" id="mode-login-btn">ログイン</button>
+        <button class="btn btn-secondary" id="mode-register-btn">新規登録</button>
+      </div>
+      <div style="margin-top:12px;text-align:center;">
+        <button class="btn btn-secondary" id="admin-toggle-btn" style="font-size:12px;padding:6px;">管理者ログイン</button>
+      </div>
     </div>
-    <div class="form-group" id="admin-password-group">
-      <label>管理者パスワード</label>
-      <input type="password" id="admin-pw-input" placeholder="パスワードを入力">
-    </div>
-    <div class="btn-row">
+
+    <!-- ログインフォーム -->
+    <div id="login-form" style="display:none;">
+      <div class="form-group">
+        <label>アカウント名</label>
+        <input type="text" id="account-input" placeholder="例：yamada_taro">
+      </div>
       <button class="btn btn-primary" id="login-btn">ログイン</button>
-      <button class="btn btn-secondary" id="admin-toggle-btn">管理者</button>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px;cursor:pointer;text-align:center;" id="back-to-mode-login">← 戻る</p>
     </div>
-    <p class="error-msg" id="login-error"></p>
-    <div id="profile-section">
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">初めてのログインです。プロフィールを設定してください。</p>
+
+    <!-- 新規登録フォーム -->
+    <div id="register-form" style="display:none;">
+      <div class="form-group">
+        <label>アカウント名</label>
+        <input type="text" id="register-account-input" placeholder="例：yamada_taro">
+      </div>
       <div class="form-group">
         <label>名前</label>
         <input type="text" id="name-input" placeholder="例：山田 太郎">
@@ -206,8 +219,28 @@
         <label>パート</label>
         <select id="part-select"><option value="">パートを選択</option></select>
       </div>
-      <button class="btn btn-primary" id="save-profile-btn">プロフィールを保存してログイン</button>
+      <button class="btn btn-primary" id="save-profile-btn">登録してログイン</button>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px;cursor:pointer;text-align:center;" id="back-to-mode-register">← 戻る</p>
     </div>
+
+    <!-- 管理者フォーム -->
+    <div id="admin-form" style="display:none;">
+      <div class="form-group">
+        <label>アカウント名</label>
+        <input type="text" id="admin-account-input" placeholder="例：yamada_taro">
+      </div>
+      <div class="form-group">
+        <label>管理者パスワード</label>
+        <input type="password" id="admin-pw-input" placeholder="パスワードを入力">
+      </div>
+      <button class="btn btn-primary" id="admin-login-btn">管理者ログイン</button>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px;cursor:pointer;text-align:center;" id="back-to-mode-admin">← 戻る</p>
+    </div>
+
+    <p class="error-msg" id="login-error"></p>
+    <!-- 互換性のための非表示要素 -->
+    <div id="admin-password-group" style="display:none;"></div>
+    <div id="profile-section" style="display:none;"></div>
   </div>
 </div>
 
@@ -367,12 +400,35 @@
   function hideError() { document.getElementById('login-error').style.display = 'none'; }
 
   // ---- EVENTS ----
-  document.getElementById('admin-toggle-btn').addEventListener('click', function() {
-    const g = document.getElementById('admin-password-group');
-    g.style.display = g.style.display === 'none' ? 'block' : 'none';
+  // ---- LOGIN MODE ----
+  function showLoginMode(mode) {
+    document.getElementById('mode-select').style.display   = mode === '' ? 'block' : 'none';
+    document.getElementById('login-form').style.display    = mode === 'login' ? 'block' : 'none';
+    document.getElementById('register-form').style.display = mode === 'register' ? 'block' : 'none';
+    document.getElementById('admin-form').style.display    = mode === 'admin' ? 'block' : 'none';
+    hideError();
+  }
+
+  // モード切替
+  document.getElementById('mode-login-btn').addEventListener('click', function() {
+    showLoginMode('login');
   });
+  document.getElementById('mode-register-btn').addEventListener('click', async function() {
+    await loadParts();
+    populatePartSelect();
+    showLoginMode('register');
+  });
+  document.getElementById('admin-toggle-btn').addEventListener('click', function() {
+    showLoginMode('admin');
+  });
+  document.getElementById('back-to-mode-login').addEventListener('click', function() { showLoginMode(''); });
+  document.getElementById('back-to-mode-register').addEventListener('click', function() { showLoginMode(''); });
+  document.getElementById('back-to-mode-admin').addEventListener('click', function() { showLoginMode(''); });
+
   document.getElementById('login-btn').addEventListener('click', handleLogin);
   document.getElementById('account-input').addEventListener('keydown', function(e) { if(e.key==='Enter') handleLogin(); });
+  document.getElementById('admin-login-btn').addEventListener('click', handleAdminLogin);
+  document.getElementById('admin-pw-input').addEventListener('keydown', function(e) { if(e.key==='Enter') handleAdminLogin(); });
   document.getElementById('save-profile-btn').addEventListener('click', saveProfile);
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('prev-month').addEventListener('click', function() { changeMonth(-1); });
@@ -381,6 +437,7 @@
   document.getElementById('next-month-ov').addEventListener('click', function() { changeMonthOv(1); });
   document.querySelectorAll('.tab').forEach(function(tab) {
     tab.addEventListener('click', function() { switchTab(this.dataset.tab); });
+    tab.addEventListener('touchend', function(e) { e.preventDefault(); switchTab(this.dataset.tab); });
   });
   document.getElementById('add-part-btn').addEventListener('click', addPart);
   document.getElementById('change-pw-btn').addEventListener('click', changePassword);
@@ -393,39 +450,61 @@
 
   // ---- LOGIN ----
   async function handleLogin() {
-    const account = document.getElementById('account-input').value.trim();
-    const adminPw = document.getElementById('admin-pw-input').value;
+    var account = document.getElementById('account-input').value.trim();
     hideError();
     if (!account) { showError('アカウント名を入力してください'); return; }
-    if (document.getElementById('admin-password-group').style.display === 'block') {
-      if (adminPw !== ADMIN_PASSWORD) { showError('パスワードが違います'); return; }
-      isAdmin = true;
-    }
     try {
       await loadParts();
-      const snap = await db.collection('users').doc(account).get();
+      await loadAdminPassword();
+      await loadVenues();
+      await loadPractices();
+      var snap = await db.collection('users').doc(account).get();
       if (snap.exists) {
-        currentUser = { account, ...snap.data() };
-        if (!currentUser.schedules) currentUser.schedules = {};
+        currentUser = { account: account, name: snap.data().name, part: snap.data().part, schedules: snap.data().schedules || {} };
         enterApp();
       } else {
-        document.getElementById('profile-section').style.display = 'block';
-        populatePartSelect();
+        showError('アカウントが見つかりません。新規登録してください。');
       }
     } catch(e) { showError('エラー: ' + e.message); }
   }
 
-  async function saveProfile() {
-    const account = document.getElementById('account-input').value.trim();
-    const name    = document.getElementById('name-input').value.trim();
-    const part    = document.getElementById('part-select').value;
+  async function handleAdminLogin() {
+    var account = document.getElementById('admin-account-input').value.trim();
+    var adminPw = document.getElementById('admin-pw-input').value;
     hideError();
-    if (!name) { showError('名前を入力してください'); return; }
-    if (!part) { showError('パートを選択してください'); return; }
+    if (!account) { showError('アカウント名を入力してください'); return; }
     try {
-      const data = { name, part, schedules: {} };
+      await loadAdminPassword();
+      if (adminPw !== ADMIN_PASSWORD) { showError('パスワードが違います'); return; }
+      await loadParts();
+      await loadVenues();
+      await loadPractices();
+      var snap = await db.collection('users').doc(account).get();
+      if (!snap.exists) { showError('アカウントが見つかりません'); return; }
+      isAdmin = true;
+      currentUser = { account: account, name: snap.data().name, part: snap.data().part, schedules: snap.data().schedules || {} };
+      enterApp();
+    } catch(e) { showError('エラー: ' + e.message); }
+  }
+
+  async function saveProfile() {
+    var account = document.getElementById('register-account-input').value.trim();
+    var name    = document.getElementById('name-input').value.trim();
+    var part    = document.getElementById('part-select').value;
+    hideError();
+    if (!account) { showError('アカウント名を入力してください'); return; }
+    if (!name)    { showError('名前を入力してください'); return; }
+    if (!part)    { showError('パートを選択してください'); return; }
+    try {
+      await loadParts();
+      await loadAdminPassword();
+      await loadVenues();
+      await loadPractices();
+      var existing = await db.collection('users').doc(account).get();
+      if (existing.exists) { showError('このアカウント名はすでに使われています'); return; }
+      var data = { name: name, part: part, schedules: {} };
       await db.collection('users').doc(account).set(data);
-      currentUser = { account, ...data };
+      currentUser = { account: account, name: name, part: part, schedules: {} };
       enterApp();
     } catch(e) { showError('エラー: ' + e.message); }
   }
@@ -449,11 +528,13 @@
     currentUser = null; isAdmin = false;
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
-    document.getElementById('profile-section').style.display = 'none';
-    document.getElementById('admin-password-group').style.display = 'none';
-    document.getElementById('account-input').value = '';
-    document.getElementById('admin-pw-input').value = '';
     document.getElementById('admin-tab').style.display = 'none';
+    document.getElementById('account-input').value = '';
+    document.getElementById('register-account-input').value = '';
+    document.getElementById('admin-account-input').value = '';
+    document.getElementById('admin-pw-input').value = '';
+    document.getElementById('name-input').value = '';
+    showLoginMode('');
     hideError();
     switchTab('my-schedule');
   }
