@@ -348,6 +348,11 @@
           <button class="btn btn-primary" id="add-part-btn">追加</button>
         </div>
       </div>
+      <div class="admin-section" id="user-admin-section" style="display:none;">
+        <h3>ユーザー管理</h3>
+        <div id="user-list-admin"></div>
+      </div>
+
       <div class="admin-section" id="pw-admin-section" style="display:none;">
         <h3>管理者パスワード変更</h3>
         <div class="form-group">
@@ -646,6 +651,7 @@
     document.getElementById('badge-part').textContent = currentUser.part;
     if (isAdmin) {
       document.getElementById('admin-tab').style.display = 'block';
+      document.getElementById('user-admin-section').style.display = 'block';
       document.getElementById('pw-admin-section').style.display = 'block';
       document.getElementById('venue-admin-section').style.display = 'block';
       document.getElementById('practice-admin-section').style.display = 'block';
@@ -1001,7 +1007,7 @@
     if (panelEl) panelEl.classList.add('active');
     if (tabName === 'overview') renderOverview();
     if (tabName === 'practice') renderPractice();
-    if (tabName === 'admin') { renderAdminParts(); renderAdminVenues(); renderAdminPracticeList(); }
+    if (tabName === 'admin') { renderAdminParts(); renderAdminVenues(); renderAdminUsers(); }
   }
 
   // ---- ADMIN ----
@@ -1036,6 +1042,56 @@
     parts = parts.filter(function(p) { return p !== name; });
     await db.collection('settings').doc('parts').set({ list: parts });
     renderAdminParts();
+  }
+
+  // ---- USER MANAGEMENT ----
+  async function renderAdminUsers() {
+    var list = document.getElementById('user-list-admin');
+    if (!list) return;
+    list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">読み込み中...</p>';
+    try {
+      var snap = await db.collection('users').get();
+      var users = [];
+      snap.forEach(function(d) { users.push({ account: d.id, ...d.data() }); });
+      users.sort(function(a,b) { return (a.part||'').localeCompare(b.part||''); });
+
+      if (users.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">ユーザーがいません</p>';
+        return;
+      }
+
+      list.innerHTML = '';
+      users.forEach(function(u) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);';
+
+        var info = document.createElement('div');
+        info.innerHTML = '<span style="font-size:11px;color:var(--text-muted);margin-right:6px;">' + (u.part||'-') + '</span>'
+          + '<span style="font-size:13px;">' + (u.name||u.account) + '</span>'
+          + '<span style="font-size:11px;color:var(--text-muted);margin-left:8px;">@' + u.account + '</span>';
+
+        var delBtn = document.createElement('button');
+        delBtn.textContent = '削除';
+        delBtn.style.cssText = 'background:none;border:1px solid #f76a6a;color:#f76a6a;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:"Noto Sans JP",sans-serif;';
+        delBtn.addEventListener('click', function() { deleteUser(u.account, u.name||u.account); });
+
+        row.appendChild(info);
+        row.appendChild(delBtn);
+        list.appendChild(row);
+      });
+    } catch(e) {
+      list.innerHTML = '<p style="color:#f76a6a;font-size:13px;">エラー: ' + e.message + '</p>';
+    }
+  }
+
+  async function deleteUser(account, name) {
+    if (!confirm('「' + name + '」(@' + account + ') を削除しますか？この操作は取り消せません。')) return;
+    try {
+      await db.collection('users').doc(account).delete();
+      renderAdminUsers();
+    } catch(e) {
+      alert('削除に失敗しました: ' + e.message);
+    }
   }
 
   // ---- EDIT PRACTICE ----
