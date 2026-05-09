@@ -13,6 +13,45 @@
       --text-muted: #7a7a96; --ok: #5ec77a; --late: #f7c26a;
       --ng: #f76a6a; --tbd: #7a7a96;
     }
+    body.light-mode {
+      --bg: #f4f4f8; --surface: #ffffff; --surface2: #ebebf2;
+      --border: #d0d0e0; --accent: #7c6af7; --text: #1a1a2e;
+      --text-muted: #6b6b8a; --ok: #2e9e55; --late: #c47f00;
+      --ng: #d63030; --tbd: #8888aa;
+    }
+    /* 設定モーダル */
+    .settings-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      border-radius: 6px; padding: 4px 10px; font-size: 18px; cursor: pointer;
+      transition: border-color .2s, color .2s; line-height: 1;
+    }
+    .settings-btn:hover { border-color: var(--accent); color: var(--text); }
+    .settings-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      display: none; align-items: center; justify-content: center; z-index: 300;
+    }
+    .settings-modal.open { display: flex; }
+    .settings-inner {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; width: 320px;
+    }
+    .settings-inner h3 { font-size:16px; margin-bottom:20px; }
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .toggle-row label { font-size:13px; }
+    .toggle { position:relative; width:44px; height:24px; }
+    .toggle input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+      position:absolute; inset:0; background:var(--border); border-radius:24px; cursor:pointer; transition:.3s;
+    }
+    .toggle-slider:before {
+      content:''; position:absolute; width:18px; height:18px; left:3px; bottom:3px;
+      background:#fff; border-radius:50%; transition:.3s;
+    }
+    .toggle input:checked + .toggle-slider { background:var(--accent); }
+    .toggle input:checked + .toggle-slider:before { transform:translateX(20px); }
     body { font-family:'Noto Sans JP',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; }
 
     /* LOGIN */
@@ -247,7 +286,10 @@
 <!-- APP -->
 <div id="app">
   <div class="header">
-    <div class="header-title">🎺 band-schedule</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="header-title">🎺 band-schedule</div>
+      <button class="settings-btn" id="settings-btn">⚙️</button>
+    </div>
     <div class="header-user">
       <div class="user-badge"><span id="badge-name">-</span> / <span id="badge-part">-</span></div>
       <button class="logout-btn" id="logout-btn">ログアウト</button>
@@ -354,11 +396,44 @@
           <label>曲名</label>
           <input type="text" id="practice-song-input" placeholder="例：Jupiter、マーチ〇〇">
         </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="practice-ensemble-input" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent);">
+          <label for="practice-ensemble-input" style="cursor:pointer;margin:0;">アンサンブル</label>
+        </div>
         <button class="btn btn-primary" id="add-practice-btn">登録する</button>
-        <div id="practice-list-admin" style="margin-top:20px;"></div>
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="settings-modal" id="settings-modal">
+  <div class="settings-inner">
+    <h3>⚙️ 設定</h3>
+    <div class="toggle-row">
+      <label>ライトモード</label>
+      <label class="toggle">
+        <input type="checkbox" id="light-mode-toggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div style="padding-top:16px;">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">プロフィール変更</p>
+      <div class="form-group">
+        <label>名前</label>
+        <input type="text" id="settings-name-input">
+      </div>
+      <div class="form-group">
+        <label>パート</label>
+        <select id="settings-part-select"><option value="">パートを選択</option></select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button class="btn btn-primary" id="save-settings-btn" style="margin:0;">保存</button>
+        <button class="btn btn-secondary" id="close-settings-btn" style="margin:0;">閉じる</button>
+      </div>
+      <p id="settings-msg" style="font-size:12px;margin-top:8px;display:none;"></p>
+    </div>
   </div>
 </div>
 
@@ -439,6 +514,20 @@
     tab.addEventListener('click', function() { switchTab(this.dataset.tab); });
     tab.addEventListener('touchend', function(e) { e.preventDefault(); switchTab(this.dataset.tab); });
   });
+  document.getElementById('settings-btn').addEventListener('click', openSettings);
+  document.getElementById('close-settings-btn').addEventListener('click', function() {
+    document.getElementById('settings-modal').classList.remove('open');
+  });
+  document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+  document.getElementById('light-mode-toggle').addEventListener('change', function() {
+    document.body.classList.toggle('light-mode', this.checked);
+    localStorage.setItem('lightMode', this.checked ? '1' : '0');
+  });
+  // ライトモードの初期化
+  if (localStorage.getItem('lightMode') === '1') {
+    document.body.classList.add('light-mode');
+    document.getElementById('light-mode-toggle').checked = true;
+  }
   document.getElementById('add-part-btn').addEventListener('click', addPart);
   document.getElementById('change-pw-btn').addEventListener('click', changePassword);
   document.getElementById('add-venue-btn').addEventListener('click', addVenue);
@@ -820,7 +909,7 @@
     users.forEach(function(u) {
       const e = (u.schedules || {})[key];
       if (e) {
-        groups[e.status].push({ name: u.name || u.account, note: e.note || '' });
+        groups[e.status].push({ name: u.name || u.account, part: u.part || '', note: e.note || '' });
       } else {
         groups.none.push({ name: u.name || u.account });
       }
@@ -841,7 +930,7 @@
       html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;">' + item.label + '</div>';
       groups[item.s].forEach(function(u) {
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;">';
-        html += '<span style="font-size:13px;">' + u.name + '</span>';
+        html += '<span style="font-size:13px;"><span style="color:var(--text-muted);font-size:11px;margin-right:6px;">' + (u.part||'') + '</span>' + (u.name||'') + '</span>';
         if (item.s === 'late' && u.note) {
           html += '<span style="font-size:11px;color:var(--late);">' + u.note + '</span>';
         }
@@ -906,6 +995,38 @@
     parts = parts.filter(function(p) { return p !== name; });
     await db.collection('settings').doc('parts').set({ list: parts });
     renderAdminParts();
+  }
+
+  // ---- SETTINGS ----
+  function openSettings() {
+    document.getElementById('settings-name-input').value = currentUser.name || '';
+    var sel = document.getElementById('settings-part-select');
+    sel.innerHTML = '<option value="">パートを選択</option>';
+    parts.forEach(function(p) {
+      var o = document.createElement('option');
+      o.value = p; o.textContent = p;
+      if (p === currentUser.part) o.selected = true;
+      sel.appendChild(o);
+    });
+    document.getElementById('settings-msg').style.display = 'none';
+    document.getElementById('settings-modal').classList.add('open');
+  }
+
+  async function saveSettings() {
+    var name = document.getElementById('settings-name-input').value.trim();
+    var part = document.getElementById('settings-part-select').value;
+    var msg  = document.getElementById('settings-msg');
+    msg.style.display = 'block';
+    if (!name) { msg.style.color = '#f76a6a'; msg.textContent = '名前を入力してください'; return; }
+    if (!part) { msg.style.color = '#f76a6a'; msg.textContent = 'パートを選択してください'; return; }
+    try {
+      await db.collection('users').doc(currentUser.account).update({ name: name, part: part });
+      currentUser.name = name;
+      currentUser.part = part;
+      document.getElementById('badge-name').textContent = name;
+      document.getElementById('badge-part').textContent = part;
+      msg.style.color = '#5ec77a'; msg.textContent = '保存しました！';
+    } catch(e) { msg.style.color = '#f76a6a'; msg.textContent = 'エラー: ' + e.message; }
   }
 
   // ---- ADMIN PASSWORD ----
@@ -1004,9 +1125,10 @@
     var start = document.getElementById('practice-start-input').value;
     var end   = document.getElementById('practice-end-input').value;
     var venue = document.getElementById('practice-venue-input').value;
-    var song  = document.getElementById('practice-song-input').value.trim();
+    var song     = document.getElementById('practice-song-input').value.trim();
+    var ensemble = document.getElementById('practice-ensemble-input').checked;
     if (!date) { alert('日付を選択してください'); return; }
-    practices.push({ date:date, start:start, end:end, venue:venue, song:song });
+    practices.push({ date:date, start:start, end:end, venue:venue, song:song, ensemble:ensemble });
     practices.sort(function(a,b) { return a.date.localeCompare(b.date); });
     await db.collection('settings').doc('practices').set({ list: practices });
     document.getElementById('practice-date-input').value = '';
@@ -1014,6 +1136,7 @@
     document.getElementById('practice-end-input').value = '';
     document.getElementById('practice-venue-input').value = '';
     document.getElementById('practice-song-input').value = '';
+    document.getElementById('practice-ensemble-input').checked = false;
     renderAdminPracticeList();
     renderPractice();
   }
@@ -1050,14 +1173,26 @@
     await loadPractices();
     await loadVenues();
     if (isAdmin) renderAdminVenues();
+
+    // 過去の日程を自動削除
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var todayStr = today.toISOString().slice(0,10);
+    var filtered = practices.filter(function(p) { return p.date >= todayStr; });
+    if (filtered.length !== practices.length) {
+      practices = filtered;
+      await db.collection('settings').doc('practices').set({ list: practices });
+    }
     if (practices.length === 0) { container.innerHTML = '<p class="loading">練習日程はまだ登録されていません</p>'; return; }
     var html = '';
     practices.forEach(function(p) {
-      html += '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;">';
+      var cardBg = p.ensemble ? 'background:var(--surface);border:1px solid var(--border);' : 'background:#0d1e3e;border-color:#6a9af7;';
+      html += '<div style="' + cardBg + 'border-radius:12px;padding:16px;margin-bottom:12px;">';
       html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
       html += '<div style="background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;">' + p.date.replace(/-/g,'/') + '</div>';
       if (p.start||p.end) html += '<div style="font-size:13px;color:var(--text-muted);">'+(p.start||'')+(p.end?' 〜 '+p.end:'')+'</div>';
       html += '</div><div style="display:flex;flex-wrap:wrap;gap:8px;">';
+      if (p.ensemble) html += '<div style="background:#2d1f6e;border:1px solid #7c6af7;border-radius:20px;padding:3px 12px;font-size:12px;color:#a99df7;">🎼 アンサンブル</div>';
       if (p.venue) html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;">📍 '+p.venue+'</div>';
       if (p.song)  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;">🎵 '+p.song+'</div>';
       html += '</div></div>';
