@@ -101,11 +101,11 @@
 
     .day-num { font-size:14px; font-weight:600; line-height:1; }
 
-    /* ステータスボタン 2×2グリッド */
+    /* ステータスボタン 縦4つ */
     .inline-btns {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
       width: 100%;
     }
 
@@ -113,8 +113,8 @@
       border: 1px solid var(--border);
       background: var(--surface2);
       border-radius: 6px;
-      font-size: 15px;
-      padding: 14px 0;
+      font-size: 14px;
+      padding: 8px 0;
       cursor: pointer;
       color: var(--text-muted);
       font-family: 'Noto Sans JP', sans-serif;
@@ -471,7 +471,7 @@
       noteWrap.className = 'note-inline' + (entry && entry.status === 'late' ? ' open' : '');
       const noteInput = document.createElement('input');
       noteInput.type = 'text';
-      noteInput.placeholder = '時間帯を入力';
+      
       noteInput.value = (entry && entry.note) ? entry.note : '';
       noteInput.addEventListener('input', function() {
         scheduleSave(key, 'late', noteInput.value);
@@ -511,7 +511,7 @@
     const noteWrap = card.querySelector('.note-inline');
     if (status === 'late') {
       noteWrap.classList.add('open');
-      noteWrap.querySelector('input').focus();
+      
     } else {
       noteWrap.classList.remove('open');
     }
@@ -542,41 +542,101 @@
   async function renderOverview() {
     const y = currentMonthOv.getFullYear(), m = currentMonthOv.getMonth();
     document.getElementById('month-label-ov').textContent = y + '年' + (m+1) + '月';
-    const content = document.getElementById('overview-content');
-    content.innerHTML = '<p class="loading">読み込み中...</p>';
+    const container = document.getElementById('overview-content');
+    container.innerHTML = '<p class="loading">読み込み中...</p>';
     try {
       const snap = await db.collection('users').get();
       const users = [];
       snap.forEach(function(d) { users.push({ account: d.id, ...d.data() }); });
-      users.sort(function(a,b) { return (a.part||'').localeCompare(b.part||''); });
+
       const lastDay = new Date(y, m+1, 0).getDate();
 
-      let html = '<div class="overview-table-wrap"><table class="overview-table"><thead><tr>';
-      html += '<th class="left">名前</th><th class="left">パート</th>';
+      // 日付ごとにスコア・人数を集計
+      const dayData = {};
       for (let d = 1; d <= lastDay; d++) {
-        const dow = new Date(y, m, d).getDay();
-        const col = dow===0?'color:#f76a6a':dow===6?'color:#6a9af7':'color:var(--text-muted)';
-        html += '<th style="' + col + '">' + d + '</th>';
-      }
-      html += '</tr></thead><tbody>';
-
-      users.forEach(function(u) {
-        html += '<tr><td class="left">' + (u.name||u.account) + '</td><td class="left">' + (u.part||'-') + '</td>';
-        for (let d = 1; d <= lastDay; d++) {
-          const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        dayData[key] = { ok:0, late:0, ng:0, tbd:0, score:0 };
+        users.forEach(function(u) {
           const e = (u.schedules||{})[key];
           if (e) {
-            const title = e.note ? ' title="' + e.note + '"' : '';
-            html += '<td><span class="' + statusCls[e.status] + '"' + title + '>' + statusEmoji[e.status] + '</span></td>';
-          } else {
-            html += '<td style="color:var(--border)">·</td>';
+            dayData[key][e.status]++;
+            if (e.status === 'ok')   dayData[key].score += 2;
+            if (e.status === 'late') dayData[key].score += 1;
           }
-        }
-        html += '</tr>';
+        });
+      }
+
+      // スコア上位3日を特定
+      const scores = Object.keys(dayData).map(function(k) { return { key:k, score:dayData[k].score }; });
+      scores.sort(function(a,b) { return b.score - a.score; });
+      const top3 = scores.slice(0,3).map(function(s) { return s.key; });
+      const rankColor = ['#5ec77a', '#5ec77a', '#5ec77a']; // 上位3日すべて同じ緑
+
+      // カレンダー描画
+      const grid = document.createElement('div');
+      grid.className = 'my-cal-grid';
+
+      // 曜日ヘッダー
+      ['日','月','火','水','木','金','土'].forEach(function(d, i) {
+        const h = document.createElement('div');
+        h.className = 'day-header' + (i===0?' sun':i===6?' sat':'');
+        h.textContent = d; grid.appendChild(h);
       });
-      html += '</tbody></table></div>';
-      content.innerHTML = html;
-    } catch(e) { content.innerHTML = '<p class="loading">エラー: ' + e.message + '</p>'; }
+
+      // 空白セル
+      const firstDow = new Date(y, m, 1).getDay();
+      for (let i = 0; i < firstDow; i++) {
+        const e = document.createElement('div'); e.className = 'day-card empty'; grid.appendChild(e);
+      }
+
+      // 日付セル
+      for (let d = 1; d <= lastDay; d++) {
+        const dow = new Date(y, m, d).getDay();
+        const today = new Date();
+        const isToday = today.getFullYear()===y && today.getMonth()===m && today.getDate()===d;
+        const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        const data = dayData[key];
+        const rankIdx = top3.indexOf(key);
+
+        const card = document.createElement('div');
+        card.className = 'day-card' + (dow===0?' sun':dow===6?' sat':'') + (isToday?' today':'');
+
+        // 上位3日は枠色を変える（スコアが1以上の場合のみ）
+        if (rankIdx !== -1 && data.score > 0) {
+          card.style.borderColor = rankColor[rankIdx];
+          card.style.borderWidth = '2px';
+        }
+
+        // 日付番号
+        const num = document.createElement('div');
+        num.className = 'day-num';
+        num.textContent = d;
+        card.appendChild(num);
+
+        // 集計表示（縦に4つ）
+        const counts = document.createElement('div');
+        counts.style.cssText = 'width:100%;display:flex;flex-direction:column;gap:2px;';
+
+        [
+          { s:'ok',   label:'◯', cls:'status-ok' },
+          { s:'late', label:'△', cls:'status-late' },
+          { s:'ng',   label:'×', cls:'status-ng' },
+          { s:'tbd',  label:'ー', cls:'status-tbd' }
+        ].forEach(function(item) {
+          const cell = document.createElement('div');
+          cell.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:4px;padding:3px 6px;font-size:11px;';
+          cell.innerHTML = '<span class="' + item.cls + '">' + item.label + '</span><span style="color:var(--text);font-weight:600;">' + data[item.s] + '</span>';
+          counts.appendChild(cell);
+        });
+
+        card.appendChild(counts);
+
+        grid.appendChild(card);
+      }
+
+      container.innerHTML = '';
+      container.appendChild(grid);
+    } catch(e) { container.innerHTML = '<p class="loading">エラー: ' + e.message + '</p>'; }
   }
 
   // ---- TABS ----
