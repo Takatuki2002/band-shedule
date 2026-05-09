@@ -250,6 +250,13 @@
           <button class="nav-btn" id="next-month-ov">›</button>
         </div>
       </div>
+      <div id="detail-panel" style="display:none; background:var(--surface); border:1px solid var(--accent); border-radius:12px; padding:20px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <h3 id="detail-panel-title" style="font-size:15px;"></h3>
+          <button id="close-detail-panel-btn" style="background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">閉じる</button>
+        </div>
+        <div id="detail-panel-content"></div>
+      </div>
       <div id="overview-content"><p class="loading">読み込み中...</p></div>
     </div>
 
@@ -265,6 +272,17 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- 詳細モーダル -->
+<div class="modal-overlay" id="detail-modal-overlay">
+  <div class="modal" style="width:340px;max-height:80vh;overflow-y:auto;">
+    <h3 id="detail-modal-title" style="margin-bottom:16px;"></h3>
+    <div id="detail-modal-content"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-secondary" id="close-detail-modal-btn">閉じる</button>
+    </div>
   </div>
 </div>
 
@@ -322,6 +340,9 @@
     tab.addEventListener('click', function() { switchTab(this.dataset.tab); });
   });
   document.getElementById('add-part-btn').addEventListener('click', addPart);
+  document.getElementById('close-detail-panel-btn').addEventListener('click', function() {
+    document.getElementById('detail-panel').style.display = 'none';
+  });
   document.getElementById('new-part-input').addEventListener('keydown', function(e) { if(e.key==='Enter') addPart(); });
 
   // ---- LOGIN ----
@@ -638,12 +659,71 @@
         scoreEl.textContent = data.score + 'pt';
         card.appendChild(scoreEl);
 
+        // 日付クリックで詳細モーダルを開く
+        (function(dateKey, dateLabel, usersSnap) {
+          card.style.cursor = 'pointer';
+          card.addEventListener('click', function() {
+            openDetailModal(dateKey, dateLabel, usersSnap);
+          });
+        })(key, y + '年' + (m+1) + '月' + d + '日', users);
+
         grid.appendChild(card);
       }
 
       container.innerHTML = '';
       container.appendChild(grid);
     } catch(e) { container.innerHTML = '<p class="loading">エラー: ' + e.message + '</p>'; }
+  }
+
+  // ---- DETAIL MODAL ----
+  function openDetailModal(key, label, users) {
+    var content = document.createElement('div');
+    content.innerHTML = '';
+
+    const order = ['ok', 'late', 'ng', 'tbd'];
+    const groups = { ok:[], late:[], ng:[], tbd:[], none:[] };
+
+    users.forEach(function(u) {
+      const e = (u.schedules || {})[key];
+      if (e) {
+        groups[e.status].push({ name: u.name || u.account, note: e.note || '' });
+      } else {
+        groups.none.push({ name: u.name || u.account });
+      }
+    });
+
+    var html = '';
+
+    // ◯△×ーの順に表示
+    // ◯と△のみ表示
+    var showGroups = [
+      { s:'ok',   label:'◯　参加可能' },
+      { s:'late', label:'△　遅刻・早退' }
+    ];
+
+    showGroups.forEach(function(item) {
+      if (groups[item.s].length === 0) return;
+      html += '<div style="margin-bottom:12px;">';
+      html += '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:4px;">' + item.label + '</div>';
+      groups[item.s].forEach(function(u) {
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;">';
+        html += '<span style="font-size:13px;">' + u.name + '</span>';
+        if (item.s === 'late' && u.note) {
+          html += '<span style="font-size:11px;color:var(--late);">' + u.note + '</span>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+
+    if (!html) html = '<p style="color:var(--text-muted);font-size:13px;">回答がありません</p>';
+
+    content.innerHTML = html;
+    var panel = document.getElementById('detail-panel');
+    document.getElementById('detail-panel-title').textContent = label;
+    document.getElementById('detail-panel-content').innerHTML = html;
+    panel.style.display = 'block';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   // ---- TABS ----
