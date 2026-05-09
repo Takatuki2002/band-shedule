@@ -1309,8 +1309,20 @@
     if (isAdmin) {
       container.querySelectorAll('[data-practice-idx]').forEach(function(card) {
         var idx = parseInt(card.getAttribute('data-practice-idx'));
+        var touchStartX, touchStartY;
+        card.addEventListener('touchstart', function(e) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+        card.addEventListener('touchend', function(e) {
+          var dx = Math.abs(e.changedTouches[0].clientX - touchStartX);
+          var dy = Math.abs(e.changedTouches[0].clientY - touchStartY);
+          if (dx < 10 && dy < 10) {
+            e.preventDefault();
+            openEditPractice(idx);
+          }
+        });
         card.addEventListener('click', function() { openEditPractice(idx); });
-        card.addEventListener('touchend', function(e) { e.preventDefault(); openEditPractice(idx); });
       });
     }
   }
