@@ -1291,7 +1291,8 @@
     practices.forEach(function(p, idx) {
       var cardBg = p.ensemble ? 'background:var(--surface);border:1px solid var(--border);' : 'background:#0d1e3e;border-color:#6a9af7;';
       var cursor = isAdmin ? 'cursor:pointer;' : '';
-      html += '<div style="' + cardBg + 'border-radius:12px;padding:16px;margin-bottom:12px;' + cursor + '" ' + (isAdmin ? 'onclick="openEditPractice(' + idx + ')"' : '') + '>';
+      var dataIdx = isAdmin ? 'data-practice-idx="' + idx + '"' : '';
+      html += '<div style="' + cardBg + 'border-radius:12px;padding:16px;margin-bottom:12px;' + cursor + '" ' + dataIdx + '>';
       html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
       html += '<div style="background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;">' + p.date.replace(/-/g,'/') + '</div>';
       if (p.start||p.end) html += '<div style="font-size:13px;color:var(--text-muted);">'+(p.start||'')+(p.end?' 〜 '+p.end:'')+'</div>';
@@ -1303,6 +1304,15 @@
     });
     container.innerHTML = html;
     highlightPracticeDays();
+
+    // 管理者の場合カードにタッチイベントを設定
+    if (isAdmin) {
+      container.querySelectorAll('[data-practice-idx]').forEach(function(card) {
+        var idx = parseInt(card.getAttribute('data-practice-idx'));
+        card.addEventListener('click', function() { openEditPractice(idx); });
+        card.addEventListener('touchend', function(e) { e.preventDefault(); openEditPractice(idx); });
+      });
+    }
   }
 
   function highlightPracticeDays() {
