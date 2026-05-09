@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>band-schedule | 吹奏楽部 日程調整</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f0f13; --surface: #1a1a22; --surface2: #22222e;
+      --border: #2e2e3e; --accent: #7c6af7; --text: #e8e8f0;
+      --text-muted: #7a7a96; --ok: #5ec77a; --late: #f7c26a;
+      --ng: #f76a6a; --tbd: #7a7a96;
+    }
+    body { font-family:'Noto Sans JP',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; }
+
+    /* LOGIN */
+    #login-screen { min-height:100vh; display:flex; align-items:center; justify-content:center;
+      background:radial-gradient(ellipse at 30% 40%,#1e1560 0%,transparent 60%),radial-gradient(ellipse at 70% 70%,#1a0f2e 0%,transparent 50%),var(--bg); }
+    .login-card { width:360px; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:40px 36px; }
+    .login-card h1 { font-family:'DM Serif Display',serif; font-size:26px; color:var(--accent); margin-bottom:4px; }
+    .login-card .subtitle { color:var(--text-muted); font-size:12px; margin-bottom:32px; }
+    .form-group { margin-bottom:16px; }
+    .form-group label { display:block; font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+    .form-group input, .form-group select {
+      width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+      padding:10px 14px; color:var(--text); font-family:'Noto Sans JP',sans-serif; font-size:14px; outline:none; transition:border-color .2s;
+    }
+    .form-group input:focus,.form-group select:focus { border-color:var(--accent); }
+    .form-group select option { background:var(--surface2); }
+    .btn { width:100%; padding:12px; border-radius:8px; border:none; font-family:'Noto Sans JP',sans-serif; font-size:14px; font-weight:500; cursor:pointer; transition:opacity .2s,transform .1s; }
+    .btn:active { transform:scale(.98); }
+    .btn-primary { background:var(--accent); color:#fff; }
+    .btn-primary:hover { opacity:.9; }
+    .btn-secondary { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+    .btn-secondary:hover { border-color:var(--accent); }
+    .btn-row { display:flex; gap:8px; margin-bottom:8px; }
+    .btn-row .btn { margin:0; }
+    #admin-password-group { display:none; }
+    #profile-section { display:none; margin-top:20px; padding-top:20px; border-top:1px solid var(--border); }
+    .error-msg { color:#f76a6a; font-size:12px; margin-top:8px; display:none; }
+
+    /* APP */
+    #app { display:none; }
+    .header { background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; }
+    .header-title { font-family:'DM Serif Display',serif; color:var(--accent); font-size:20px; }
+    .header-user { display:flex; align-items:center; gap:12px; }
+    .user-badge { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; font-size:12px; color:var(--text-muted); }
+    .user-badge span { color:var(--text); font-weight:500; }
+    .logout-btn { background:none; border:1px solid var(--border); color:var(--text-muted); border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; font-family:'Noto Sans JP',sans-serif; transition:border-color .2s,color .2s; }
+    .logout-btn:hover { border-color:var(--accent); color:var(--text); }
+
+    /* TABS */
+    .tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; }
+    .tab { padding:14px 20px; font-size:13px; color:var(--text-muted); cursor:pointer; border-bottom:2px solid transparent; transition:color .2s,border-color .2s; }
+    .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+    .tab:hover { color:var(--text); }
+
+    /* MAIN */
+    .main { padding:16px; max-width:1100px; margin:0 auto; }
+    .panel { display:none; }
+    .panel.active { display:block; }
+
+    /* CALENDAR HEADER */
+    .calendar-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .section-title { font-size:16px; font-weight:500; }
+    .calendar-nav { display:flex; align-items:center; gap:16px; }
+    .nav-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); width:32px; height:32px; border-radius:6px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:border-color .2s; }
+    .nav-btn:hover { border-color:var(--accent); }
+    .month-label { font-size:18px; font-weight:500; min-width:120px; text-align:center; }
+
+    /* MY CALENDAR - インライン入力型 */
+    .my-cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+
+    .day-header { text-align:center; font-size:11px; color:var(--text-muted); padding:6px 0; font-weight:500; }
+    .day-header.sun { color:#f76a6a; }
+    .day-header.sat { color:#6a9af7; }
+
+    /* 日付セル：縦長、ボタンを常時表示 */
+    .day-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: border-color .2s;
+    }
+    .day-card.empty { background:transparent; border-color:transparent; }
+    .day-card.today { border-color:var(--accent); }
+    .day-card.sun .day-num { color:#f76a6a; }
+    .day-card.sat .day-num { color:#6a9af7; }
+
+    .day-num { font-size:12px; font-weight:600; line-height:1; }
+
+    /* ステータスボタン4つ横並び */
+    .inline-btns {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      width: 100%;
+    }
+
+    .inline-btn {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      border-radius: 4px;
+      font-size: 11px;
+      padding: 3px 0;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: border-color .15s, color .15s, background .15s;
+      text-align: center;
+      line-height: 1;
+    }
+    .inline-btn:hover { background: var(--surface); }
+
+    /* 選択済みスタイル */
+    .inline-btn.sel-ok   { border-color:var(--ok);   color:var(--ok);   background:#0d2e18; }
+    .inline-btn.sel-late { border-color:var(--late); color:var(--late); background:#2e200a; }
+    .inline-btn.sel-ng   { border-color:var(--ng);   color:var(--ng);   background:#2e0d0d; }
+    .inline-btn.sel-tbd  { border-color:var(--tbd);  color:var(--tbd);  background:#1a1a22; }
+
+    /* 備考欄（△選択時に展開） */
+    .note-inline {
+      width: 100%;
+      display: none;
+    }
+    .note-inline.open { display: block; }
+    .note-inline input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--late);
+      border-radius: 4px;
+      padding: 3px 6px;
+      color: var(--text);
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 10px;
+      outline: none;
+    }
+
+    /* OVERVIEW */
+    .overview-table-wrap { overflow-x:auto; }
+    .overview-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .overview-table th { background:var(--surface2); padding:8px 10px; text-align:center; color:var(--text-muted); font-weight:500; border-bottom:1px solid var(--border); white-space:nowrap; }
+    .overview-table th.left { text-align:left; }
+    .overview-table td { padding:8px 10px; border-bottom:1px solid var(--border); text-align:center; white-space:nowrap; }
+    .overview-table td.left { text-align:left; }
+    .overview-table tr:hover td { background:var(--surface2); }
+    .status-ok { color:var(--ok); }
+    .status-late { color:var(--late); }
+    .status-ng { color:var(--ng); }
+    .status-tbd { color:var(--tbd); }
+
+    /* ADMIN */
+    .admin-section { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:20px; }
+    .admin-section h3 { font-size:12px; font-weight:500; margin-bottom:16px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.08em; }
+    .part-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; min-height:32px; }
+    .part-tag { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 12px; font-size:12px; display:flex; align-items:center; gap:8px; }
+    .part-tag-del { color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1; transition:color .2s; }
+    .part-tag-del:hover { color:var(--ng); }
+    .add-part-row { display:flex; gap:8px; }
+    .add-part-row input { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; color:var(--text); font-family:'Noto Sans JP',sans-serif; font-size:13px; outline:none; }
+    .add-part-row input:focus { border-color:var(--accent); }
+    .add-part-row .btn { width:auto; padding:8px 16px; }
+    .loading { text-align:center; padding:40px; color:var(--text-muted); }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <h1>🎺 band-schedule</h1>
+    <p class="subtitle">吹奏楽部 日程調整ツール</p>
+    <div class="form-group">
+      <label>アカウント名</label>
+      <input type="text" id="account-input" placeholder="例：yamada_taro">
+    </div>
+    <div class="form-group" id="admin-password-group">
+      <label>管理者パスワード</label>
+      <input type="password" id="admin-pw-input" placeholder="パスワードを入力">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="login-btn">ログイン</button>
+      <button class="btn btn-secondary" id="admin-toggle-btn">管理者</button>
+    </div>
+    <p class="error-msg" id="login-error"></p>
+    <div id="profile-section">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">初めてのログインです。プロフィールを設定してください。</p>
+      <div class="form-group">
+        <label>名前</label>
+        <input type="text" id="name-input" placeholder="例：山田 太郎">
+      </div>
+      <div class="form-group">
+        <label>パート</label>
+        <select id="part-select"><option value="">パートを選択</option></select>
+      </div>
+      <button class="btn btn-primary" id="save-profile-btn">プロフィールを保存してログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="header">
+    <div class="header-title">🎺 band-schedule</div>
+    <div class="header-user">
+      <div class="user-badge"><span id="badge-name">-</span> / <span id="badge-part">-</span></div>
+      <button class="logout-btn" id="logout-btn">ログアウト</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="my-schedule">マイスケジュール</div>
+    <div class="tab" data-tab="overview">全体カレンダー</div>
+    <div class="tab" data-tab="admin" id="admin-tab" style="display:none;">管理者</div>
+  </div>
+  <div class="main">
+
+    <!-- マイスケジュール -->
+    <div class="panel active" id="panel-my-schedule">
+      <div class="calendar-header">
+        <p class="section-title">スケジュール登録</p>
+        <div class="calendar-nav">
+          <button class="nav-btn" id="prev-month">‹</button>
+          <div class="month-label" id="month-label"></div>
+          <button class="nav-btn" id="next-month">›</button>
+        </div>
+      </div>
+      <div class="my-cal-grid" id="my-calendar"></div>
+    </div>
+
+    <!-- 全体カレンダー -->
+    <div class="panel" id="panel-overview">
+      <div class="calendar-header">
+        <p class="section-title">全体カレンダー</p>
+        <div class="calendar-nav">
+          <button class="nav-btn" id="prev-month-ov">‹</button>
+          <div class="month-label" id="month-label-ov"></div>
+          <button class="nav-btn" id="next-month-ov">›</button>
+        </div>
+      </div>
+      <div id="overview-content"><p class="loading">読み込み中...</p></div>
+    </div>
+
+    <!-- 管理者 -->
+    <div class="panel" id="panel-admin">
+      <div class="admin-section">
+        <h3>パート管理</h3>
+        <div class="part-list" id="part-list"></div>
+        <div class="add-part-row">
+          <input type="text" id="new-part-input" placeholder="新しいパート名">
+          <button class="btn btn-primary" id="add-part-btn">追加</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+(function() {
+  // Firebase初期化
+  const firebaseConfig = {
+    apiKey: "AIzaSyAZDo15-Fy4Wp2cESpQMYeryI_XzJy6zik",
+    authDomain: "band-schedule-c77cb.firebaseapp.com",
+    projectId: "band-schedule-c77cb",
+    storageBucket: "band-schedule-c77cb.firebasestorage.app",
+    messagingSenderId: "303528983553",
+    appId: "1:303528983553:web:c8c501f39b2b6ff70bd400"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const ADMIN_PASSWORD = "band2024admin";
+
+  let currentUser = null;
+  let isAdmin = false;
+  let currentMonth = new Date();
+  let currentMonthOv = new Date();
+  let parts = [];
+  let saveTimer = {};  // 日付ごとの保存タイマー
+
+  const statusEmoji = { ok:'◯', late:'△', ng:'×', tbd:'ー' };
+  const statusCls   = { ok:'status-ok', late:'status-late', ng:'status-ng', tbd:'status-tbd' };
+
+  // ---- UTILS ----
+  function showError(msg) {
+    const el = document.getElementById('login-error');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideError() { document.getElementById('login-error').style.display = 'none'; }
+
+  // ---- EVENTS ----
+  document.getElementById('admin-toggle-btn').addEventListener('click', function() {
+    const g = document.getElementById('admin-password-group');
+    g.style.display = g.style.display === 'none' ? 'block' : 'none';
+  });
+  document.getElementById('login-btn').addEventListener('click', handleLogin);
+  document.getElementById('account-input').addEventListener('keydown', function(e) { if(e.key==='Enter') handleLogin(); });
+  document.getElementById('save-profile-btn').addEventListener('click', saveProfile);
+  document.getElementById('logout-btn').addEventListener('click', logout);
+  document.getElementById('prev-month').addEventListener('click', function() { changeMonth(-1); });
+  document.getElementById('next-month').addEventListener('click', function() { changeMonth(1); });
+  document.getElementById('prev-month-ov').addEventListener('click', function() { changeMonthOv(-1); });
+  document.getElementById('next-month-ov').addEventListener('click', function() { changeMonthOv(1); });
+  document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() { switchTab(this.dataset.tab); });
+  });
+  document.getElementById('add-part-btn').addEventListener('click', addPart);
+  document.getElementById('new-part-input').addEventListener('keydown', function(e) { if(e.key==='Enter') addPart(); });
+
+  // ---- LOGIN ----
+  async function handleLogin() {
+    const account = document.getElementById('account-input').value.trim();
+    const adminPw = document.getElementById('admin-pw-input').value;
+    hideError();
+    if (!account) { showError('アカウント名を入力してください'); return; }
+    if (document.getElementById('admin-password-group').style.display === 'block') {
+      if (adminPw !== ADMIN_PASSWORD) { showError('パスワードが違います'); return; }
+      isAdmin = true;
+    }
+    try {
+      await loadParts();
+      const snap = await db.collection('users').doc(account).get();
+      if (snap.exists) {
+        currentUser = { account, ...snap.data() };
+        if (!currentUser.schedules) currentUser.schedules = {};
+        enterApp();
+      } else {
+        document.getElementById('profile-section').style.display = 'block';
+        populatePartSelect();
+      }
+    } catch(e) { showError('エラー: ' + e.message); }
+  }
+
+  async function saveProfile() {
+    const account = document.getElementById('account-input').value.trim();
+    const name    = document.getElementById('name-input').value.trim();
+    const part    = document.getElementById('part-select').value;
+    hideError();
+    if (!name) { showError('名前を入力してください'); return; }
+    if (!part) { showError('パートを選択してください'); return; }
+    try {
+      const data = { name, part, schedules: {} };
+      await db.collection('users').doc(account).set(data);
+      currentUser = { account, ...data };
+      enterApp();
+    } catch(e) { showError('エラー: ' + e.message); }
+  }
+
+  function enterApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('badge-name').textContent = currentUser.name;
+    document.getElementById('badge-part').textContent = currentUser.part;
+    if (isAdmin) document.getElementById('admin-tab').style.display = 'block';
+    renderMyCalendar();
+  }
+
+  function logout() {
+    currentUser = null; isAdmin = false;
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('profile-section').style.display = 'none';
+    document.getElementById('admin-password-group').style.display = 'none';
+    document.getElementById('account-input').value = '';
+    document.getElementById('admin-pw-input').value = '';
+    document.getElementById('admin-tab').style.display = 'none';
+    hideError();
+    switchTab('my-schedule');
+  }
+
+  // ---- PARTS ----
+  async function loadParts() {
+    const snap = await db.collection('settings').doc('parts').get();
+    if (snap.exists && snap.data().list) {
+      parts = snap.data().list;
+    } else {
+      parts = ['フルート','クラリネット','サックス','トランペット','トロンボーン','ホルン','ユーフォニアム','チューバ','パーカッション'];
+      await db.collection('settings').doc('parts').set({ list: parts });
+    }
+  }
+
+  function populatePartSelect() {
+    const sel = document.getElementById('part-select');
+    sel.innerHTML = '<option value="">パートを選択</option>';
+    parts.forEach(function(p) {
+      const o = document.createElement('option');
+      o.value = p; o.textContent = p; sel.appendChild(o);
+    });
+  }
+
+  // ---- MY CALENDAR（インライン入力型） ----
+  function changeMonth(d) {
+    currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + d, 1);
+    renderMyCalendar();
+  }
+
+  function renderMyCalendar() {
+    const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
+    document.getElementById('month-label').textContent = y + '年' + (m+1) + '月';
+    const grid = document.getElementById('my-calendar');
+    grid.innerHTML = '';
+
+    // 曜日ヘッダー
+    ['日','月','火','水','木','金','土'].forEach(function(d, i) {
+      const h = document.createElement('div');
+      h.className = 'day-header' + (i===0?' sun':i===6?' sat':'');
+      h.textContent = d; grid.appendChild(h);
+    });
+
+    const firstDow = new Date(y, m, 1).getDay();
+    const lastDay  = new Date(y, m+1, 0).getDate();
+    const today    = new Date();
+    const schedules = currentUser.schedules || {};
+
+    // 空白セル
+    for (let i = 0; i < firstDow; i++) {
+      const e = document.createElement('div'); e.className = 'day-card empty'; grid.appendChild(e);
+    }
+
+    // 日付セル
+    for (let d = 1; d <= lastDay; d++) {
+      const dow = new Date(y, m, d).getDay();
+      const isToday = today.getFullYear()===y && today.getMonth()===m && today.getDate()===d;
+      const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      const entry = schedules[key] || null;
+
+      const card = document.createElement('div');
+      card.className = 'day-card' + (dow===0?' sun':dow===6?' sat':'') + (isToday?' today':'');
+
+      // 日付番号
+      const num = document.createElement('div');
+      num.className = 'day-num';
+      num.textContent = d;
+      card.appendChild(num);
+
+      // ステータスボタン4つ
+      const btns = document.createElement('div');
+      btns.className = 'inline-btns';
+
+      ['ok','late','ng','tbd'].forEach(function(s) {
+        const btn = document.createElement('button');
+        btn.className = 'inline-btn' + (entry && entry.status === s ? ' sel-'+s : '');
+        btn.textContent = statusEmoji[s];
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          handleInlineStatus(key, s, card);
+        });
+        btns.appendChild(btn);
+      });
+      card.appendChild(btns);
+
+      // 備考欄（△選択時のみ表示）
+      const noteWrap = document.createElement('div');
+      noteWrap.className = 'note-inline' + (entry && entry.status === 'late' ? ' open' : '');
+      const noteInput = document.createElement('input');
+      noteInput.type = 'text';
+      noteInput.placeholder = '時間帯を入力';
+      noteInput.value = (entry && entry.note) ? entry.note : '';
+      noteInput.addEventListener('input', function() {
+        scheduleSave(key, 'late', noteInput.value);
+      });
+      noteWrap.appendChild(noteInput);
+      card.appendChild(noteWrap);
+
+      grid.appendChild(card);
+    }
+  }
+
+  // ステータスをインラインで選択
+  function handleInlineStatus(key, status, card) {
+    if (!currentUser.schedules) currentUser.schedules = {};
+
+    const current = currentUser.schedules[key];
+
+    // 同じステータスをもう一度タップ → 解除
+    if (current && current.status === status) {
+      delete currentUser.schedules[key];
+      saveSchedule();
+      renderMyCalendar();
+      return;
+    }
+
+    currentUser.schedules[key] = { status: status, note: '' };
+    saveSchedule();
+
+    // ボタンの見た目を即座に更新
+    const allBtns = card.querySelectorAll('.inline-btn');
+    allBtns.forEach(function(b, i) {
+      const s = ['ok','late','ng','tbd'][i];
+      b.className = 'inline-btn' + (s === status ? ' sel-'+s : '');
+    });
+
+    // 備考欄の表示切り替え
+    const noteWrap = card.querySelector('.note-inline');
+    if (status === 'late') {
+      noteWrap.classList.add('open');
+      noteWrap.querySelector('input').focus();
+    } else {
+      noteWrap.classList.remove('open');
+    }
+  }
+
+  // 備考入力の保存（500ms後に自動保存）
+  function scheduleSave(key, status, note) {
+    if (!currentUser.schedules) currentUser.schedules = {};
+    currentUser.schedules[key] = { status: status, note: note };
+    clearTimeout(saveTimer[key]);
+    saveTimer[key] = setTimeout(function() { saveSchedule(); }, 500);
+  }
+
+  async function saveSchedule() {
+    try {
+      await db.collection('users').doc(currentUser.account).update({ schedules: currentUser.schedules });
+    } catch(e) {
+      console.error('保存エラー:', e.message);
+    }
+  }
+
+  // ---- OVERVIEW ----
+  function changeMonthOv(d) {
+    currentMonthOv = new Date(currentMonthOv.getFullYear(), currentMonthOv.getMonth() + d, 1);
+    renderOverview();
+  }
+
+  async function renderOverview() {
+    const y = currentMonthOv.getFullYear(), m = currentMonthOv.getMonth();
+    document.getElementById('month-label-ov').textContent = y + '年' + (m+1) + '月';
+    const content = document.getElementById('overview-content');
+    content.innerHTML = '<p class="loading">読み込み中...</p>';
+    try {
+      const snap = await db.collection('users').get();
+      const users = [];
+      snap.forEach(function(d) { users.push({ account: d.id, ...d.data() }); });
+      users.sort(function(a,b) { return (a.part||'').localeCompare(b.part||''); });
+      const lastDay = new Date(y, m+1, 0).getDate();
+
+      let html = '<div class="overview-table-wrap"><table class="overview-table"><thead><tr>';
+      html += '<th class="left">名前</th><th class="left">パート</th>';
+      for (let d = 1; d <= lastDay; d++) {
+        const dow = new Date(y, m, d).getDay();
+        const col = dow===0?'color:#f76a6a':dow===6?'color:#6a9af7':'color:var(--text-muted)';
+        html += '<th style="' + col + '">' + d + '</th>';
+      }
+      html += '</tr></thead><tbody>';
+
+      users.forEach(function(u) {
+        html += '<tr><td class="left">' + (u.name||u.account) + '</td><td class="left">' + (u.part||'-') + '</td>';
+        for (let d = 1; d <= lastDay; d++) {
+          const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+          const e = (u.schedules||{})[key];
+          if (e) {
+            const title = e.note ? ' title="' + e.note + '"' : '';
+            html += '<td><span class="' + statusCls[e.status] + '"' + title + '>' + statusEmoji[e.status] + '</span></td>';
+          } else {
+            html += '<td style="color:var(--border)">·</td>';
+          }
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table></div>';
+      content.innerHTML = html;
+    } catch(e) { content.innerHTML = '<p class="loading">エラー: ' + e.message + '</p>'; }
+  }
+
+  // ---- TABS ----
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+    const tabEl = document.querySelector('[data-tab="' + tabName + '"]');
+    if (tabEl) tabEl.classList.add('active');
+    const panelEl = document.getElementById('panel-' + tabName);
+    if (panelEl) panelEl.classList.add('active');
+    if (tabName === 'overview') renderOverview();
+    if (tabName === 'admin') renderAdminParts();
+  }
+
+  // ---- ADMIN ----
+  function renderAdminParts() {
+    const list = document.getElementById('part-list');
+    list.innerHTML = '';
+    parts.forEach(function(p) {
+      const tag = document.createElement('div');
+      tag.className = 'part-tag';
+      const del = document.createElement('span');
+      del.className = 'part-tag-del';
+      del.textContent = '×';
+      del.addEventListener('click', function() { deletePart(p); });
+      tag.textContent = p;
+      tag.appendChild(del);
+      list.appendChild(tag);
+    });
+  }
+
+  async function addPart() {
+    const input = document.getElementById('new-part-input');
+    const name  = input.value.trim();
+    if (!name || parts.includes(name)) return;
+    parts.push(name);
+    await db.collection('settings').doc('parts').set({ list: parts });
+    input.value = '';
+    renderAdminParts();
+  }
+
+  async function deletePart(name) {
+    if (!confirm('「' + name + '」を削除しますか？')) return;
+    parts = parts.filter(function(p) { return p !== name; });
+    await db.collection('settings').doc('parts').set({ list: parts });
+    renderAdminParts();
+  }
+
+})();
+</script>
+</body>
+</html>
