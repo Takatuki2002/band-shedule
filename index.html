@@ -733,6 +733,7 @@
 
       const card = document.createElement('div');
       card.className = 'day-card' + (dow===0?' sun':dow===6?' sat':'') + (isToday?' today':'');
+      card.dataset.key = key;
 
       // 日付番号
       const num = document.createElement('div');
@@ -858,9 +859,19 @@
 
       // スコア上位3位以内（同点含む）をすべて強調
       // スコア降順に並べて上位3日を取得
-      var sortedKeys = Object.keys(dayData).filter(function(k) { return dayData[k].score > 0; });
-      sortedKeys.sort(function(a, b) { return dayData[b].score - dayData[a].score; });
-      var top3 = sortedKeys.slice(0, 3);
+      // この月に通常練習日（アンサンブル以外）があるか確認
+      var yearMonth = y + '-' + String(m+1).padStart(2,'0');
+      var hasNormalPracticeThisMonth = practices.some(function(p) {
+        return !p.ensemble && p.date.indexOf(yearMonth) === 0;
+      });
+      // 通常練習日がない月のみ緑枠を表示
+      var top3 = [];
+      if (!hasNormalPracticeThisMonth) {
+        var sortedKeys = Object.keys(dayData).filter(function(k) { return dayData[k].score > 0; });
+        sortedKeys.sort(function(a, b) { return dayData[b].score - dayData[a].score; });
+        var thirdScore = sortedKeys.length >= 3 ? dayData[sortedKeys[2]].score : (sortedKeys.length > 0 ? dayData[sortedKeys[sortedKeys.length-1]].score : 0);
+        top3 = sortedKeys.filter(function(k) { return dayData[k].score >= thirdScore; });
+      }
       var rankColor = ['#5ec77a', '#5ec77a', '#5ec77a'];
 
       // カレンダー描画
@@ -893,9 +904,13 @@
         card.className = 'day-card' + (dow===0?' sun':dow===6?' sat':'') + (isToday?' today':'');
         card.dataset.key = key;
 
-        // 上位3日は枠色を変える（スコアが1以上の場合のみ）
-        if (top3.indexOf(key) !== -1 && data.score > 0) {
-          card.style.borderColor = rankColor[rankIdx];
+        // 通常練習日は赤枠、それ以外で上位は緑枠
+        var normalPracticeDates = practices.filter(function(p) { return !p.ensemble; }).map(function(p) { return p.date; });
+        if (normalPracticeDates.indexOf(key) !== -1) {
+          card.style.borderColor = '#f76a6a';
+          card.style.borderWidth = '2px';
+        } else if (top3.indexOf(key) !== -1 && data.score > 0) {
+          card.style.borderColor = '#5ec77a';
           card.style.borderWidth = '2px';
         }
 
@@ -1384,7 +1399,8 @@
   }
 
   function highlightPracticeDays() {
-    var practiceDates = practices.map(function(p) { return p.date; });
+    // 通常練習日のみ（アンサンブル除く）
+    var practiceDates = practices.filter(function(p) { return !p.ensemble; }).map(function(p) { return p.date; });
     document.querySelectorAll('.day-card').forEach(function(card) {
       var key = card.dataset.key;
       if (key && practiceDates.indexOf(key) !== -1) {
