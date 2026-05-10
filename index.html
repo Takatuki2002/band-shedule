@@ -938,11 +938,7 @@
 
         card.appendChild(counts);
 
-        // スコア表示
-        var scoreEl = document.createElement('div');
-        scoreEl.style.cssText = 'font-size:10px;color:var(--text-muted);';
-        scoreEl.textContent = data.score + 'pt';
-        card.appendChild(scoreEl);
+
 
         // 日付クリックで詳細モーダルを開く
         (function(dateKey, dateLabel, usersSnap) {
