@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>band-schedule | 吹奏楽部 日程調整</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+  <title>ゆるふわ日程帳</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Serif+Display&family=Yomogi&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -12,6 +12,35 @@
       --border: #2e2e3e; --accent: #7c6af7; --text: #e8e8f0;
       --text-muted: #7a7a96; --ok: #5ec77a; --late: #f7c26a;
       --ng: #f76a6a; --tbd: #7a7a96;
+    }
+    body.yurufuwa-mode {
+      --bg: #fdf6ff; --surface: #fff0fb; --surface2: #ffe8f7;
+      --border: #f0c8e8; --accent: #d07fc0; --text: #4a3050;
+      --text-muted: #a080a0; --ok: #6dbf8a; --late: #f0b060;
+      --ng: #e87878; --tbd: #a080a0;
+    }
+    body.yurufuwa-mode .login-card h1,
+    body.yurufuwa-mode .header-title {
+      font-family: 'Yomogi', cursive !important;
+    }
+    /* ゆるふわモード: 選択済みボタンの色を暗くしない */
+    body.yurufuwa-mode .inline-btn.sel-ok   { border-color:#6dbf8a; color:#fff; background:#8fd8a8; }
+    body.yurufuwa-mode .inline-btn.sel-late { border-color:#f0b060; color:#fff; background:#f5c880; }
+    body.yurufuwa-mode .inline-btn.sel-ng   { border-color:#e87878; color:#fff; background:#f0a0a0; }
+    body.yurufuwa-mode .inline-btn.sel-tbd  { border-color:#a080a0; color:#fff; background:#c0a0c0; }
+    /* ゆるふわモード: 通常練習カードの色 */
+    body.yurufuwa-mode .practice-normal-card {
+      background: var(--surface) !important;
+      border: 2px solid #90c0f0 !important;
+    }
+    /* ゆるふわモード: アンサンブルタグの色 */
+    body.yurufuwa-mode .ensemble-tag {
+      background: #d8eeff !important;
+      border-color: #90c0f0 !important;
+      color: #5090c0 !important;
+    }
+    body.yurufuwa-mode {
+      background: linear-gradient(135deg, #fce4f8 0%, #e8f4ff 50%, #fef9e7 100%);
     }
     body.light-mode {
       --bg: #f4f4f8; --surface: #ffffff; --surface2: #ebebf2;
@@ -220,8 +249,11 @@
 <!-- LOGIN -->
 <div id="login-screen">
   <div class="login-card">
-    <h1>🎺 band-schedule</h1>
-    <p class="subtitle">吹奏楽部 日程調整ツール</p>
+    <h1>🎺 ゆるふわ日程帳</h1>
+    <p class="subtitle">ゆるふわ楽団 日程調整ツール</p>
+    <div style="text-align:center;margin-bottom:16px;">
+      <button id="yurufuwa-toggle-btn" style="background:none;border:1px solid var(--border);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:all .2s;">🌸 ゆるふわモード</button>
+    </div>
 
     <!-- モード選択 -->
     <div id="mode-select" style="margin-bottom:24px;">
@@ -287,7 +319,7 @@
 <div id="app">
   <div class="header">
     <div style="display:flex;align-items:center;gap:10px;">
-      <div class="header-title">🎺 band-schedule</div>
+      <div class="header-title">🎺 ゆるふわ日程帳</div>
       <button class="settings-btn" id="settings-btn">⚙️</button>
     </div>
     <div class="header-user">
@@ -420,6 +452,13 @@
       <label>ライトモード</label>
       <label class="toggle">
         <input type="checkbox" id="light-mode-toggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="toggle-row">
+      <label>🌸 ゆるふわモード</label>
+      <label class="toggle">
+        <input type="checkbox" id="yurufuwa-mode-toggle">
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -561,6 +600,11 @@
   });
   document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
   document.getElementById('light-mode-toggle').addEventListener('change', function() {
+    if (this.checked) {
+      document.body.classList.remove('yurufuwa-mode');
+      document.getElementById('yurufuwa-mode-toggle').checked = false;
+      localStorage.setItem('yurufuwaMode', '0');
+    }
     document.body.classList.toggle('light-mode', this.checked);
     localStorage.setItem('lightMode', this.checked ? '1' : '0');
   });
@@ -569,6 +613,31 @@
     document.body.classList.add('light-mode');
     document.getElementById('light-mode-toggle').checked = true;
   }
+  // ゆるふわモードの初期化
+  function applyYurufuwa(on) {
+    document.body.classList.toggle('yurufuwa-mode', on);
+    document.body.classList.toggle('light-mode', false);
+    var btn = document.getElementById('yurufuwa-toggle-btn');
+    var toggle = document.getElementById('yurufuwa-mode-toggle');
+    var lightToggle = document.getElementById('light-mode-toggle');
+    if (btn) btn.style.borderColor = on ? '#d07fc0' : 'var(--border)';
+    if (btn) btn.style.color = on ? '#d07fc0' : 'var(--text-muted)';
+    if (toggle) toggle.checked = on;
+    if (lightToggle) lightToggle.checked = false;
+    localStorage.setItem('yurufuwaMode', on ? '1' : '0');
+    localStorage.setItem('lightMode', '0');
+  }
+  if (localStorage.getItem('yurufuwaMode') === '1') applyYurufuwa(true);
+
+  // ゆるふわモードボタン（ログイン画面）
+  document.getElementById('yurufuwa-toggle-btn').addEventListener('click', function() {
+    var isOn = document.body.classList.contains('yurufuwa-mode');
+    applyYurufuwa(!isOn);
+  });
+  // ゆるふわモードトグル（設定モーダル）
+  document.getElementById('yurufuwa-mode-toggle').addEventListener('change', function() {
+    applyYurufuwa(this.checked);
+  });
   document.getElementById('close-edit-practice-btn').addEventListener('click', function() {
     document.getElementById('edit-practice-modal').classList.remove('open');
   });
@@ -1356,15 +1425,17 @@
     if (practices.length === 0) { container.innerHTML = '<p class="loading">練習日程はまだ登録されていません</p>'; return; }
     var html = '';
     practices.forEach(function(p, idx) {
-      var cardBg = p.ensemble ? 'background:var(--surface);border:1px solid var(--border);' : 'background:#0d1e3e;border-color:#6a9af7;';
+      var isEnsemble = p.ensemble;
+      var cardBg = isEnsemble ? 'background:var(--surface);border:1px solid var(--border);' : 'background:#0d1e3e;border-color:#6a9af7;';
+      var cardClass = isEnsemble ? '' : 'practice-normal-card';
       var cursor = isAdmin ? 'cursor:pointer;' : '';
       var dataIdx = isAdmin ? 'data-practice-idx="' + idx + '"' : '';
-      html += '<div style="' + cardBg + 'border-radius:12px;padding:16px;margin-bottom:12px;' + cursor + '" ' + dataIdx + '>';
+      html += '<div class="' + cardClass + '" style="' + cardBg + 'border-radius:12px;padding:16px;margin-bottom:12px;' + cursor + '" ' + dataIdx + '>';
       html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">';
       html += '<div style="background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;">' + p.date.replace(/-/g,'/') + '</div>';
       if (p.start||p.end) html += '<div style="font-size:13px;color:var(--text-muted);">'+(p.start||'')+(p.end?' 〜 '+p.end:'')+'</div>';
       html += '</div><div style="display:flex;flex-wrap:wrap;gap:8px;">';
-      if (p.ensemble) html += '<div style="background:#2d1f6e;border:1px solid #7c6af7;border-radius:20px;padding:3px 12px;font-size:12px;color:#a99df7;">🎼 アンサンブル</div>';
+      if (p.ensemble) html += '<div class="ensemble-tag" style="background:#2d1f6e;border:1px solid #7c6af7;border-radius:20px;padding:3px 12px;font-size:12px;color:#a99df7;">🎼 アンサンブル</div>';
       if (p.venue) html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;">📍 '+p.venue+'</div>';
       if (p.song)  html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:12px;">🎵 '+p.song+'</div>';
       html += '</div></div>';
