@@ -181,8 +181,8 @@
       border: 1px solid var(--border);
       background: var(--surface2);
       border-radius: 6px;
-      font-size: 14px;
-      padding: 8px 0;
+      font-size: 16px;
+      padding: 12px 0;
       cursor: pointer;
       color: var(--text-muted);
       font-family: 'Noto Sans JP', sans-serif;
@@ -210,10 +210,10 @@
       background: var(--surface2);
       border: 1px solid var(--late);
       border-radius: 4px;
-      padding: 3px 6px;
+      padding: 10px 8px;
       color: var(--text);
       font-family: 'Noto Sans JP', sans-serif;
-      font-size: 10px;
+      font-size: 12px;
       outline: none;
     }
 
@@ -814,7 +814,7 @@
       const btns = document.createElement('div');
       btns.className = 'inline-btns';
 
-      ['ok','late','ng','tbd'].forEach(function(s) {
+      ['ok','late','ng'].forEach(function(s) {
         const btn = document.createElement('button');
         btn.className = 'inline-btn' + (entry && entry.status === s ? ' sel-'+s : '');
         btn.textContent = statusEmoji[s];
@@ -996,8 +996,7 @@
         [
           { s:'ok',   label:'◯', cls:'status-ok' },
           { s:'late', label:'△', cls:'status-late' },
-          { s:'ng',   label:'×', cls:'status-ng' },
-          { s:'tbd',  label:'ー', cls:'status-tbd' }
+          { s:'ng',   label:'×', cls:'status-ng' }
         ].forEach(function(item) {
           const cell = document.createElement('div');
           cell.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:4px;padding:3px 6px;font-size:11px;';
