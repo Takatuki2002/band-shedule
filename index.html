@@ -665,6 +665,8 @@
       var snap = await db.collection('users').doc(account).get();
       if (snap.exists) {
         currentUser = { account: account, name: snap.data().name, part: snap.data().part, schedules: snap.data().schedules || {} };
+        pruneOldSchedules();
+        await db.collection('users').doc(account).update({ schedules: currentUser.schedules }).catch(function(){});
         enterApp();
       } else {
         showError('アカウントが見つかりません。新規登録してください。');
@@ -687,6 +689,8 @@
       if (!snap.exists) { showError('アカウントが見つかりません'); return; }
       isAdmin = true;
       currentUser = { account: account, name: snap.data().name, part: snap.data().part, schedules: snap.data().schedules || {} };
+      pruneOldSchedules();
+      await db.collection('users').doc(account).update({ schedules: currentUser.schedules }).catch(function(){});
       enterApp();
     } catch(e) { showError('エラー: ' + e.message); }
   }
@@ -885,8 +889,21 @@
     saveTimer[key] = setTimeout(function() { saveSchedule(); }, 500);
   }
 
+  function pruneOldSchedules() {
+    if (!currentUser.schedules) return;
+    var cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - 3);
+    var cutoffKey = cutoff.getFullYear() + '-' + String(cutoff.getMonth() + 1).padStart(2, '0') + '-01';
+    Object.keys(currentUser.schedules).forEach(function(key) {
+      if (key < cutoffKey) {
+        delete currentUser.schedules[key];
+      }
+    });
+  }
+
   async function saveSchedule() {
     try {
+      pruneOldSchedules();
       await db.collection('users').doc(currentUser.account).update({ schedules: currentUser.schedules });
     } catch(e) {
       console.error('保存エラー:', e.message);
