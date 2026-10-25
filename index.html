@@ -543,6 +543,7 @@
   let currentMonthOv = new Date();
   let parts = [];
   let saveTimer = {};  // 日付ごとの保存タイマー
+  let allUsersCache = null;  // 全体カレンダー用キャッシュ
 
   const statusEmoji = { ok:'◯', late:'△', ng:'×', tbd:'ー' };
   const statusCls   = { ok:'status-ok', late:'status-late', ng:'status-ng', tbd:'status-tbd' };
@@ -905,6 +906,12 @@
     try {
       pruneOldSchedules();
       await db.collection('users').doc(currentUser.account).update({ schedules: currentUser.schedules });
+      // キャッシュ内の自分のデータも更新
+      if (allUsersCache) {
+        var idx = allUsersCache.findIndex(function(u) { return u.account === currentUser.account; });
+        if (idx >= 0) allUsersCache[idx].schedules = Object.assign({}, currentUser.schedules);
+        else allUsersCache.push({ account: currentUser.account, name: currentUser.name, part: currentUser.part, schedules: Object.assign({}, currentUser.schedules) });
+      }
     } catch(e) {
       console.error('保存エラー:', e.message);
     }
@@ -920,11 +927,17 @@
     const y = currentMonthOv.getFullYear(), m = currentMonthOv.getMonth();
     document.getElementById('month-label-ov').textContent = y + '年' + (m+1) + '月';
     const container = document.getElementById('overview-content');
-    container.innerHTML = '<p class="loading">読み込み中...</p>';
     try {
-      const snap = await db.collection('users').get();
-      const users = [];
-      snap.forEach(function(d) { users.push({ account: d.id, ...d.data() }); });
+      let users;
+      if (allUsersCache) {
+        users = allUsersCache;
+      } else {
+        container.innerHTML = '<p class="loading">読み込み中...</p>';
+        const snap = await db.collection('users').get();
+        users = [];
+        snap.forEach(function(d) { users.push({ account: d.id, ...d.data() }); });
+        allUsersCache = users;
+      }
 
       const lastDay = new Date(y, m+1, 0).getDate();
 
