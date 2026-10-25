@@ -659,16 +659,22 @@
     hideError();
     if (!account) { showError('アカウント名を入力してください'); return; }
     try {
-      await loadParts();
-      await loadAdminPassword();
-      await loadVenues();
-      await loadPractices();
-      var snap = await db.collection('users').doc(account).get();
+      var results = await Promise.all([
+        loadParts(), loadAdminPassword(), loadVenues(), loadPractices(),
+        db.collection('users').doc(account).get(),
+        db.collection('users').get()
+      ]);
+      var snap = results[4];
+      var allSnap = results[5];
+      // 全ユーザーをキャッシュ
+      allUsersCache = [];
+      allSnap.forEach(function(d) { allUsersCache.push({ account: d.id, ...d.data() }); });
       if (snap.exists) {
         currentUser = { account: account, name: snap.data().name, part: snap.data().part, schedules: snap.data().schedules || {} };
-        pruneOldSchedules();
-        await db.collection('users').doc(account).update({ schedules: currentUser.schedules }).catch(function(){});
         enterApp();
+        // 古いデータ削除はバックグラウンドで
+        pruneOldSchedules();
+        db.collection('users').doc(account).update({ schedules: currentUser.schedules }).catch(function(){});
       } else {
         showError('アカウントが見つかりません。新規登録してください。');
       }
@@ -683,16 +689,21 @@
     try {
       await loadAdminPassword();
       if (adminPw !== ADMIN_PASSWORD) { showError('パスワードが違います'); return; }
-      await loadParts();
-      await loadVenues();
-      await loadPractices();
-      var snap = await db.collection('users').doc(account).get();
+      var results = await Promise.all([
+        loadParts(), loadVenues(), loadPractices(),
+        db.collection('users').doc(account).get(),
+        db.collection('users').get()
+      ]);
+      var snap = results[3];
+      var allSnap = results[4];
+      allUsersCache = [];
+      allSnap.forEach(function(d) { allUsersCache.push({ account: d.id, ...d.data() }); });
       if (!snap.exists) { showError('アカウントが見つかりません'); return; }
       isAdmin = true;
       currentUser = { account: account, name: snap.data().name, part: snap.data().part, schedules: snap.data().schedules || {} };
-      pruneOldSchedules();
-      await db.collection('users').doc(account).update({ schedules: currentUser.schedules }).catch(function(){});
       enterApp();
+      pruneOldSchedules();
+      db.collection('users').doc(account).update({ schedules: currentUser.schedules }).catch(function(){});
     } catch(e) { showError('エラー: ' + e.message); }
   }
 
