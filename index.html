@@ -931,6 +931,7 @@
   // ---- OVERVIEW ----
   function changeMonthOv(d) {
     currentMonthOv = new Date(currentMonthOv.getFullYear(), currentMonthOv.getMonth() + d, 1);
+    document.getElementById('detail-panel').style.display = 'none';
     renderOverview();
   }
 
